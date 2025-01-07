@@ -112,22 +112,20 @@ const App = () => {
       let baseToAccount = 1;
       if (baseCurrency !== "XAU") {
         const baseResponse = await fetch(
-          `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${baseCurrency.toLowerCase()}.json`,
+          `https://api.coinbase.com/v2/exchange-rates?currency=${baseCurrency.toUpperCase()}`,
         );
         const baseData = await baseResponse.json();
-        baseToAccount =
-          baseData[baseCurrency.toLowerCase()][currency.toLowerCase()] || 1;
+        baseToAccount = baseData.data.rates[currency.toUpperCase()] || 1;
       }
 
       // Fetch conversion rates for the quote currency (if not XAU)
       let quoteToAccount = 1;
       if (quoteCurrency !== "XAU") {
         const quoteResponse = await fetch(
-          `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/${quoteCurrency.toLowerCase()}.json`,
+          `https://api.coinbase.com/v2/exchange-rates?currency=${quoteCurrency.toUpperCase()}`,
         );
         const quoteData = await quoteResponse.json();
-        quoteToAccount =
-          quoteData[quoteCurrency.toLowerCase()][currency.toLowerCase()] || 1;
+        quoteToAccount = quoteData.data.rates[currency.toUpperCase()] || 1;
       }
 
       // Calculate the conversion rate between base and quote currencies
