@@ -106,56 +106,59 @@ const App = () => {
         );
         return;
       }
-      const { balance: accountBalance, currency } = accountBalanceData;
+      const { balance: accountBalance, currency: accountCurrency } = accountBalanceData;
 
-      // Fetch conversion rates for the base currency (if not XAU)
-      let baseToAccount = 1;
-      if (baseCurrency !== "XAU") {
-        const baseResponse = await fetch(
-          `https://api.coinbase.com/v2/exchange-rates?currency=${baseCurrency.toUpperCase()}`,
-        );
-        const baseData = await baseResponse.json();
-        baseToAccount = baseData.data.rates[currency.toUpperCase()] || 1;
+      // Calculate risk amount
+      const riskAmount = (accountBalance * parseFloat(riskPercentage)) / 100;
+
+      // Calculate pip value in quote currency
+      let pipValueQuote;
+      if (baseCurrency === "XAU" || quoteCurrency === "XAU") {
+        // For gold, 1 pip = 0.01 USD per ounce
+        pipValueQuote = 0.01;
+      } else if (quoteCurrency === "JPY") {
+        // For JPY pairs, 1 pip = 0.01 JPY
+        pipValueQuote = 0.01;
+      } else {
+        // For other pairs, 1 pip = 0.0001 of quote currency
+        pipValueQuote = 0.0001;
       }
 
-      // Fetch conversion rates for the quote currency (if not XAU)
-      let quoteToAccount = 1;
-      if (quoteCurrency !== "XAU") {
+      // Get exchange rate between quote currency and account currency
+      let quoteToAccountRate = 1;
+      if (quoteCurrency !== accountCurrency) {
         const quoteResponse = await fetch(
           `https://api.coinbase.com/v2/exchange-rates?currency=${quoteCurrency.toUpperCase()}`,
         );
         const quoteData = await quoteResponse.json();
-        quoteToAccount = quoteData.data.rates[currency.toUpperCase()] || 1;
+        quoteToAccountRate = quoteData.data.rates[accountCurrency.toUpperCase()] || 1;
       }
 
-      // Calculate the conversion rate between base and quote currencies
-      const conversionRate = baseToAccount / quoteToAccount;
+      // Calculate pip value in account currency
+      const pipValueAccount = pipValueQuote * quoteToAccountRate;
 
-      // Calculate the lot size
-      const riskAmount = (accountBalance * parseFloat(riskPercentage)) / 100;
-
-      // Pip value calculation
-      let pipValue;
+      // Calculate lot size using the formula
+      let lotSize;
       if (baseCurrency === "XAU" || quoteCurrency === "XAU") {
-        // For gold, 1 standard lot = 100 ounces, and 1 pip = 0.01
-        pipValue = 100 * 0.01; // 1 standard lot of gold
-      } else if (quoteCurrency === "JPY") {
-        pipValue = 1000; // Pip value for 1 standard lot of JPY pairs
+        // For gold, 1 lot = 100 ounces
+        lotSize = riskAmount / (pips * pipValueAccount * 100);
       } else {
-        pipValue = 10; // Pip value for 1 standard lot of other pairs
+        // For forex, 1 lot = 100,000 units
+        lotSize = riskAmount / (pips * pipValueAccount * 100000);
       }
-
-      const lotSize = (riskAmount * conversionRate) / (pips * pipValue);
 
       // Calculate position size in units
-      const positionSizeUnits =
-        lotSize *
-        (baseCurrency === "XAU" || quoteCurrency === "XAU" ? 100 : 100000);
+      let positionSizeUnits;
+      if (baseCurrency === "XAU" || quoteCurrency === "XAU") {
+        positionSizeUnits = lotSize * 100; // 1 lot = 100 ounces for gold
+      } else {
+        positionSizeUnits = lotSize * 100000; // 1 lot = 100,000 units for forex
+      }
 
       // Calculate standard, mini, and micro lots
       const standardLots = lotSize.toFixed(4);
-      const miniLots = (lotSize * 10).toFixed(4); // 1 standard lot = 10 mini lots
-      const microLots = (lotSize * 100).toFixed(4); // 1 standard lot = 100 micro lots
+      const miniLots = (lotSize * 10).toFixed(4);
+      const microLots = (lotSize * 100).toFixed(4);
 
       // Set the result with thousand separators
       setResult({
