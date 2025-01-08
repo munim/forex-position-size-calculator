@@ -15,12 +15,12 @@ const App = () => {
   }, []);
 
   const parseAccountBalance = (input) => {
-    const regex = /(\d+\.?\d*)\s*([a-zA-Z]{3})/i;
+    const regex = /(\d+\.?\d*)\s*([a-zA-Z]{3})?/i; // Updated regex
     const match = input.match(regex);
     if (match) {
       return {
         balance: parseFloat(match[1]),
-        currency: match[2].toUpperCase(),
+        currency: match[2] ? match[2].toUpperCase() : "USD", // Default to USD
       };
     }
     return null;
