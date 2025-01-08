@@ -334,7 +334,7 @@ const App = () => {
 
           <div className="mb-6">
             <label className="block mb-2 text-sm text-gray-600">
-              Input Text (e.g., "Buy NZDCAD 0.81250, SL 0.81050"):
+              Input Text (e.g., "NZDCAD 0.81250, SL 0.81050"):
             </label>
             <textarea
               className="w-full p-2 border rounded"
