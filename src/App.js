@@ -106,7 +106,8 @@ const App = () => {
         );
         return;
       }
-      const { balance: accountBalance, currency: accountCurrency } = accountBalanceData;
+      const { balance: accountBalance, currency: accountCurrency } =
+        accountBalanceData;
 
       // Calculate risk amount
       const riskAmount = (accountBalance * parseFloat(riskPercentage)) / 100;
@@ -131,7 +132,8 @@ const App = () => {
           `https://api.coinbase.com/v2/exchange-rates?currency=${quoteCurrency.toUpperCase()}`,
         );
         const quoteData = await quoteResponse.json();
-        quoteToAccountRate = quoteData.data.rates[accountCurrency.toUpperCase()] || 1;
+        quoteToAccountRate =
+          quoteData.data.rates[accountCurrency.toUpperCase()] || 1;
       }
 
       // Calculate pip value in account currency
@@ -165,7 +167,9 @@ const App = () => {
         lotSize: parseFloat(lotSize).toLocaleString(undefined, {
           maximumFractionDigits: 4,
         }),
-        amountAtRisk: `$${riskAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+        amountAtRisk: `${riskAmount.toLocaleString(undefined, {
+          maximumFractionDigits: 2,
+        })} ${accountCurrency}`,
         positionSizeUnits: positionSizeUnits.toLocaleString(undefined, {
           maximumFractionDigits: 4,
         }),
