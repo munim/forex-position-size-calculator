@@ -78,7 +78,7 @@ const App = () => {
     const currencyMatch = text.match(currencyRegex);
     if (!currencyMatch) {
       alert(
-        "Invalid instrument format. Please provide a valid currency pair (e.g., NZDCAD, XAUUSD).",
+        "Invalid instrument format. Please provide a valid currency pair (e.g., NZDCAD, XAUUSD, USDJPY).",
       );
       return;
     }
@@ -144,10 +144,13 @@ const App = () => {
     if (baseCurrency === "XAU" || quoteCurrency === "XAU") {
       return Math.abs(openingAmount - stopLoss) / 0.01;
     } else if (quoteCurrency === "JPY") {
-      return Math.abs(openingAmount - stopLoss) / 0.01; // JPY pairs use 2 decimal places
+      // JPY pairs use 2 decimal places (e.g., USDJPY 110.50)
+      return Math.abs(openingAmount - stopLoss) / 0.01;
     } else if (baseCurrency === "JPY") {
-      return Math.abs(openingAmount - stopLoss) / 0.000001; // When JPY is base currency
+      // When JPY is base currency (e.g., JPYUSD)
+      return Math.abs(openingAmount - stopLoss) / 0.0001;
     } else {
+      // Standard forex pairs (4 decimal places)
       return Math.abs(openingAmount - stopLoss) / 0.0001;
     }
   };
@@ -179,10 +182,13 @@ const App = () => {
       if (baseCurrency === "XAU" || quoteCurrency === "XAU") {
         pipValueQuote = 0.01;
       } else if (quoteCurrency === "JPY") {
+        // For JPY pairs, 1 pip = 0.01
         pipValueQuote = 0.01;
       } else if (baseCurrency === "JPY") {
-        pipValueQuote = 0.000001;
+        // When JPY is base currency
+        pipValueQuote = 0.0001;
       } else {
+        // Standard forex pairs
         pipValueQuote = 0.0001;
       }
 
