@@ -73,7 +73,37 @@ const App = () => {
    * "Long XAUUSD Entry: 2000.50"
    */
   const parseInputText = (text) => {
-    // Extract trading instrument (e.g., EURUSD, XAUUSD)
+    // Check for simple input formats first
+    const simpleInputRegex =
+      /([A-Za-z]{6})\s*[:\s]\s*(\d+\.?\d*)\s*,?\s*SL\s*[:\s]\s*(\d+\.?\d*|(\d+)\s*pips?)/i;
+    const simpleInputMatch = text.match(simpleInputRegex);
+    if (simpleInputMatch) {
+      const baseCurrency = simpleInputMatch[1].substring(0, 3).toUpperCase();
+      const quoteCurrency = simpleInputMatch[1].substring(3).toUpperCase();
+      const openingAmount = parseFloat(simpleInputMatch[2]);
+      let stopLoss;
+      if (simpleInputMatch[4]) {
+        // SL is given in pips
+        const pips = parseFloat(simpleInputMatch[4]);
+        stopLoss =
+          quoteCurrency === "JPY"
+            ? openingAmount - pips * 0.01
+            : openingAmount - pips * 0.0001;
+      } else {
+        // SL is given as a price
+        stopLoss = parseFloat(simpleInputMatch[3]);
+      }
+      const calculatedPips = calculatePips(
+        baseCurrency,
+        quoteCurrency,
+        openingAmount,
+        stopLoss,
+      );
+      calculateLotSize(baseCurrency, quoteCurrency, calculatedPips);
+      return;
+    }
+
+    // Existing logic for other input formats
     const currencyRegex = /([A-Za-z]{3})([A-Za-z]{3})|([A-Za-z]{6})/i;
     const currencyMatch = text.match(currencyRegex);
     if (!currencyMatch) {
