@@ -1,12 +1,39 @@
+/**
+ * @fileoverview
+ * Forex Lot Size Calculator React Application
+ *
+ * This application calculates appropriate lot sizes for forex and gold trading based on:
+ * - Account balance and currency
+ * - Risk percentage per trade
+ * - Trading instrument (currency pair or gold)
+ * - Entry price and stop loss
+ *
+ * The calculator supports various input formats commonly used in trading signals:
+ * - Standard format: "Buy EURUSD 1.05000, SL 1.04800"
+ * - Signal format: "EURUSD Buy Now Enter 1.05000"
+ * - Limit orders: "Entry (sell limit): 1.05000"
+ * - Gold trading: "XAUUSD Buy Enter 2000.50"
+ *
+ * Features:
+ * - Automatic pip value calculation
+ * - Support for different account currencies
+ * - Saves account balance and risk settings to localStorage
+ * - Displays results in standard/mini/micro lots
+ * - Handles both forex pairs and gold (XAU)
+ */
+
 import React, { useState, useEffect } from "react";
 
 const App = () => {
+  // State management for form inputs and calculation results
   const [accountBalanceInput, setAccountBalanceInput] = useState("");
   const [inputText, setInputText] = useState("");
   const [riskPercentage, setRiskPercentage] = useState("");
   const [result, setResult] = useState(null);
 
-  // Load account balance and risk percentage from localStorage on component mount
+  /**
+   * Load saved settings from localStorage on component mount
+   */
   useEffect(() => {
     const storedBalance = localStorage.getItem("accountBalance");
     const storedRiskPercentage = localStorage.getItem("riskPercentage");
@@ -14,20 +41,39 @@ const App = () => {
     if (storedRiskPercentage) setRiskPercentage(storedRiskPercentage);
   }, []);
 
+  /**
+   * Parse account balance input string to extract amount and currency
+   * @param {string} input - Account balance input (e.g., "1000 USD")
+   * @returns {Object|null} Object containing balance and currency, or null if invalid
+   * @example
+   * parseAccountBalance("1000 USD") // returns { balance: 1000, currency: "USD" }
+   * parseAccountBalance("1000") // returns { balance: 1000, currency: "USD" }
+   */
   const parseAccountBalance = (input) => {
-    const regex = /(\d+\.?\d*)\s*([a-zA-Z]{3})?/i; // Updated regex
+    const regex = /(\d+\.?\d*)\s*([a-zA-Z]{3})?/i;
     const match = input.match(regex);
     if (match) {
       return {
         balance: parseFloat(match[1]),
-        currency: match[2] ? match[2].toUpperCase() : "USD", // Default to USD
+        currency: match[2] ? match[2].toUpperCase() : "USD", // Default to USD if no currency specified
       };
     }
     return null;
   };
 
+  /**
+   * Parse trading signal text to extract trade details
+   * Supports various input formats for forex and gold trading signals
+   * @param {string} text - Trading signal text
+   * @example
+   * // Supported formats:
+   * "Buy EURUSD 1.05000, SL 1.04800"
+   * "EURUSD Buy Now Enter 1.05000"
+   * "Entry (sell limit): 1.05000"
+   * "Long XAUUSD Entry: 2000.50"
+   */
   const parseInputText = (text) => {
-    // Extract base and quote currency
+    // Extract trading instrument (e.g., EURUSD, XAUUSD)
     const currencyRegex = /([A-Za-z]{3})([A-Za-z]{3})|([A-Za-z]{6})/i;
     const currencyMatch = text.match(currencyRegex);
     if (!currencyMatch) {
@@ -43,9 +89,9 @@ const App = () => {
       currencyMatch[2] || currencyMatch[3].substring(3)
     ).toUpperCase();
 
-    // Extract opening amount (handles "BUY NZDCAD 0.81250", "Entry (sell limit): 98600", "Entry: 95600", etc.)
+    // Extract entry price using comprehensive regex pattern
     const openingAmountRegex =
-      /(?:Enter|Entry|Entered at|Buy|Sell|Entry\s*\((?:sell|buy)\s*limit\))[\s:]*(\d+\.?\d*)|(?:Buy|Sell)\s+[A-Za-z]{6}\s+(\d+\.?\d*)/i;
+      /(?:Enter(?:ed)?(?:\s+(?:at|now))?|Entry(?:\s*\((?:sell|buy)\s*limit\))?|Buy|Sell|Long|Short)[\s:]*(\d+\.?\d*)|(?:Buy|Sell|Long|Short)\s+[A-Za-z]{6}\s+(\d+\.?\d*)/i;
     const openingAmountMatch = text.match(openingAmountRegex);
     if (!openingAmountMatch) {
       alert(
@@ -57,7 +103,7 @@ const App = () => {
       openingAmountMatch[1] || openingAmountMatch[2],
     );
 
-    // Extract stop loss
+    // Extract stop loss level
     const slRegex = /(?:SL|Stop Loss)[\s:]*(\d+\.?\d*)/i;
     const slMatch = text.match(slRegex);
     if (!slMatch) {
@@ -66,13 +112,13 @@ const App = () => {
     }
     const stopLoss = parseFloat(slMatch[1]);
 
-    // Extract pips (if provided)
+    // Extract pip value from signal if provided (e.g., "SL: 1.04800 (20 pips)")
     const pipsRegex =
       /(?:SL|Stop Loss)[\s:]*\d+\.?\d*\s*\((\d+)\s*(?:pips?)?\)/i;
     const pipsMatch = text.match(pipsRegex);
     const pips = pipsMatch ? parseFloat(pipsMatch[1]) : null;
 
-    // Calculate pips if not provided
+    // Calculate pips if not explicitly provided
     const calculatedPips =
       pips ||
       calculatePips(baseCurrency, quoteCurrency, openingAmount, stopLoss);
@@ -81,24 +127,40 @@ const App = () => {
     calculateLotSize(baseCurrency, quoteCurrency, calculatedPips);
   };
 
+  /**
+   * Calculate the number of pips between entry and stop loss
+   * @param {string} baseCurrency - Base currency of the pair
+   * @param {string} quoteCurrency - Quote currency of the pair
+   * @param {number} openingAmount - Entry price
+   * @param {number} stopLoss - Stop loss price
+   * @returns {number} Number of pips between entry and stop loss
+   */
   const calculatePips = (
     baseCurrency,
     quoteCurrency,
     openingAmount,
     stopLoss,
   ) => {
-    // For gold (XAU), 1 pip is 0.01; for JPY pairs, 1 pip is 0.01; for others, it's 0.0001
     if (baseCurrency === "XAU" || quoteCurrency === "XAU") {
       return Math.abs(openingAmount - stopLoss) / 0.01;
     } else if (quoteCurrency === "JPY") {
-      return Math.abs(openingAmount - stopLoss) / 0.01;
+      return Math.abs(openingAmount - stopLoss) / 0.01; // JPY pairs use 2 decimal places
+    } else if (baseCurrency === "JPY") {
+      return Math.abs(openingAmount - stopLoss) / 0.000001; // When JPY is base currency
     } else {
       return Math.abs(openingAmount - stopLoss) / 0.0001;
     }
   };
 
+  /**
+   * Calculate appropriate lot size based on risk parameters
+   * @param {string} baseCurrency - Base currency of the pair
+   * @param {string} quoteCurrency - Quote currency of the pair
+   * @param {number} pips - Number of pips at risk
+   */
   const calculateLotSize = async (baseCurrency, quoteCurrency, pips) => {
     try {
+      // Validate account balance input
       const accountBalanceData = parseAccountBalance(accountBalanceInput);
       if (!accountBalanceData) {
         alert(
@@ -109,23 +171,22 @@ const App = () => {
       const { balance: accountBalance, currency: accountCurrency } =
         accountBalanceData;
 
-      // Calculate risk amount
+      // Calculate risk amount based on percentage
       const riskAmount = (accountBalance * parseFloat(riskPercentage)) / 100;
 
-      // Calculate pip value in quote currency
+      // Determine pip value in quote currency
       let pipValueQuote;
       if (baseCurrency === "XAU" || quoteCurrency === "XAU") {
-        // For gold, 1 pip = 0.01 USD per ounce
         pipValueQuote = 0.01;
       } else if (quoteCurrency === "JPY") {
-        // For JPY pairs, 1 pip = 0.01 JPY
         pipValueQuote = 0.01;
+      } else if (baseCurrency === "JPY") {
+        pipValueQuote = 0.000001;
       } else {
-        // For other pairs, 1 pip = 0.0001 of quote currency
         pipValueQuote = 0.0001;
       }
 
-      // Get exchange rate between quote currency and account currency
+      // Convert pip value to account currency if different
       let quoteToAccountRate = 1;
       if (quoteCurrency !== accountCurrency) {
         const quoteResponse = await fetch(
@@ -139,22 +200,20 @@ const App = () => {
       // Calculate pip value in account currency
       const pipValueAccount = pipValueQuote * quoteToAccountRate;
 
-      // Calculate lot size using the formula
+      // Calculate lot size based on instrument type
       let lotSize;
       if (baseCurrency === "XAU" || quoteCurrency === "XAU") {
-        // For gold, 1 lot = 100 ounces
-        lotSize = riskAmount / (pips * pipValueAccount * 100);
+        lotSize = riskAmount / (pips * pipValueAccount * 100); // Gold: 1 lot = 100 oz
       } else {
-        // For forex, 1 lot = 100,000 units
-        lotSize = riskAmount / (pips * pipValueAccount * 100000);
+        lotSize = riskAmount / (pips * pipValueAccount * 100000); // Forex: 1 lot = 100,000 units
       }
 
       // Calculate position size in units
       let positionSizeUnits;
       if (baseCurrency === "XAU" || quoteCurrency === "XAU") {
-        positionSizeUnits = lotSize * 100; // 1 lot = 100 ounces for gold
+        positionSizeUnits = lotSize * 100; // Convert to ounces for gold
       } else {
-        positionSizeUnits = lotSize * 100000; // 1 lot = 100,000 units for forex
+        positionSizeUnits = lotSize * 100000; // Convert to currency units for forex
       }
 
       // Calculate standard, mini, and micro lots
@@ -162,7 +221,7 @@ const App = () => {
       const miniLots = (lotSize * 10).toFixed(4);
       const microLots = (lotSize * 100).toFixed(4);
 
-      // Set the result with thousand separators
+      // Update result state with formatted values
       setResult({
         lotSize: parseFloat(lotSize).toLocaleString(undefined, {
           maximumFractionDigits: 4,
@@ -188,6 +247,9 @@ const App = () => {
     }
   };
 
+  /**
+   * Reset all form inputs and clear results
+   */
   const handleReset = () => {
     setAccountBalanceInput("");
     setInputText("");
@@ -197,6 +259,7 @@ const App = () => {
     localStorage.removeItem("riskPercentage");
   };
 
+  // UI Component render structure
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <h1 className="text-2xl font-bold mb-6">Forex Lot Size Calculator</h1>
@@ -228,7 +291,7 @@ const App = () => {
               value={riskPercentage}
               onChange={(e) => {
                 setRiskPercentage(e.target.value);
-                localStorage.setItem("riskPercentage", e.target.value); // Save to localStorage
+                localStorage.setItem("riskPercentage", e.target.value);
               }}
             />
           </div>
@@ -262,7 +325,7 @@ const App = () => {
           </div>
         </div>
 
-        {/* Output Section */}
+        {/* Results Section */}
         {result && (
           <div className="lg:w-1/2 mt-6 lg:mt-0">
             <h2 className="text-xl font-bold mb-4">Result</h2>
